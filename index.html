@@ -240,7 +240,7 @@
   .tx-amount { font-weight: 700; font-size: 14px; }
   .tx-amount.in { color: #22c55e; }
   .tx-amount.out { color: #ef4444; }
-  /* Form area like send / status */
+  /* Form area like send / withdraw / status */
   .form-card { 
     position: fixed; 
     top: 50%; 
@@ -470,13 +470,13 @@
   <!-- Quick action grid -->
   <div class="quick-actions">
     <div class="action" id="toBank"><span class="emoji">🏦</span>To Bank</div>
+    <div class="action" id="withdraw"><span class="emoji">💸</span>Withdraw</div>
     <div class="action"><span class="emoji">👥</span>To PalmPay</div>
     <div class="action"><span class="emoji">💰</span>Savings</div>
     <div class="action"><span class="emoji">💳</span>ATM Card</div>
     <div class="action"><span class="emoji">📞</span>Airtime</div>
     <div class="action"><span class="emoji">📶</span>Data</div>
     <div class="action"><span class="emoji">⚽</span>Betting</div>
-    <div class="action"><span class="emoji">💡</span>Electricity</div>
   </div>
 
   <!-- CashBox -->
@@ -542,6 +542,7 @@
         <option value="all">All Categories</option>
         <option value="interbank">Interbank Transfer</option>
         <option value="send">Send</option>
+        <option value="withdraw">Withdraw</option>
         <option value="auto">Auto Deduct-Flexi Repayment</option>
         <option value="data">Buy Data Bundle</option>
       </select>
@@ -580,6 +581,19 @@
       <button type="button" class="small-btn ghost" id="cancelAddMoney" style="flex:1">Cancel</button>
     </div>
     <div id="addMoneyStatus" class="status"></div>
+  </div>
+
+  <!-- Withdraw Form (hidden by default) -->
+  <div class="form-card" id="withdrawForm">
+    <input type="text" id="withdrawBankName" placeholder="Bank Name" required>
+    <input type="text" id="withdrawBankAcct" placeholder="Bank Account Number" required>
+    <input type="text" id="withdrawAccountName" placeholder="Account Name" required>
+    <input type="number" id="withdrawAmount" placeholder="₦ Amount" required>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="primary" id="submitWithdraw" style="flex:1">Withdraw</button>
+      <button type="button" class="small-btn ghost" id="cancelWithdraw" style="flex:1">Cancel</button>
+    </div>
+    <div id="withdrawStatus" class="status"></div>
   </div>
 
   <!-- Success Screen with Receipt -->
@@ -662,6 +676,14 @@ const cancelAddMoney = document.getElementById('cancelAddMoney');
 const recipientInput = document.getElementById('recipientInput');
 const amountInput = document.getElementById('amountInput');
 const addMoneyStatus = document.getElementById('addMoneyStatus');
+const withdrawForm = document.getElementById('withdrawForm');
+const submitWithdraw = document.getElementById('submitWithdraw');
+const cancelWithdraw = document.getElementById('cancelWithdraw');
+const withdrawBankName = document.getElementById('withdrawBankName');
+const withdrawBankAcct = document.getElementById('withdrawBankAcct');
+const withdrawAccountName = document.getElementById('withdrawAccountName');
+const withdrawAmount = document.getElementById('withdrawAmount');
+const withdrawStatus = document.getElementById('withdrawStatus');
 const successScreen = document.getElementById('successScreen');
 const receiptDetails = document.getElementById('receiptDetails');
 const closeSuccess = document.getElementById('closeSuccess');
@@ -709,6 +731,7 @@ function renderRecent() {
   const filteredTx = transactions.filter(tx => {
     const category = tx.name.includes('Interbank') ? 'interbank' : 
                      tx.name.includes('Send') ? 'send' : 
+                     tx.name.includes('Withdraw') ? 'withdraw' : 
                      tx.name.includes('Auto') ? 'auto' : 
                      tx.name.includes('Buy') ? 'data' : 'other';
     const isIn = tx.amount >= 0;
@@ -728,14 +751,17 @@ function renderRecent() {
     li.style.cursor = 'pointer';
     const category = tx.name.includes('Interbank') ? 'interbank transfer' : 
                      tx.name.includes('Send') ? tx.name : 
+                     tx.name.includes('Withdraw') ? 'Withdraw' : 
                      tx.name.includes('Auto') ? 'Auto deduct-Flexi Repayment' : 
                      tx.name.includes('Buy') ? 'Buy Data Bundle' : 'Other';
     const iconColor = tx.name.includes('Interbank') ? '#3b82f6' : 
                       tx.name.includes('Send') ? '#8b5cf6' : 
+                      tx.name.includes('Withdraw') ? '#f59e0b' : 
                       tx.name.includes('Auto') ? '#f97316' : 
                       tx.name.includes('Buy') ? '#10b981' : '#d1d5db';
     const icon = tx.name.includes('Interbank') ? '⬇' : 
                  tx.name.includes('Send') ? '⬆' : 
+                 tx.name.includes('Withdraw') ? '💸' : 
                  tx.name.includes('Auto') ? '📝' : 
                  tx.name.includes('Buy') ? '📶' : '❓';
     li.innerHTML = `
@@ -772,6 +798,7 @@ function renderHistory() {
   const isIncoming = selectedTx.amount >= 0;
   const category = selectedTx.name.includes('Interbank') ? 'Interbank Transfer' :
                    selectedTx.name.includes('Send') ? 'Send Money' :
+                   selectedTx.name.includes('Withdraw') ? 'Withdrawal' :
                    selectedTx.name.includes('Auto') ? 'Auto Deduct' :
                    selectedTx.name.includes('Buy') ? 'Data Purchase' : 'Other';
   historyList.innerHTML = `
@@ -880,7 +907,7 @@ function openAddMoneyQuick() {
   showStatus('Enter amount and press "Add Money"', true, addMoneyStatus);
 }
 
-/* send / add money logic */
+/* send / add money / withdraw logic */
 document.getElementById('toBank').addEventListener('click', () => {
   sendForm.classList.add('active');
   bankName.value = '';
@@ -888,6 +915,15 @@ document.getElementById('toBank').addEventListener('click', () => {
   accountName.value = '';
   sendAmount.value = '';
   formStatus.textContent = '';
+});
+
+document.getElementById('withdraw').addEventListener('click', () => {
+  withdrawForm.classList.add('active');
+  withdrawBankName.value = '';
+  withdrawBankAcct.value = '';
+  withdrawAccountName.value = '';
+  withdrawAmount.value = '';
+  withdrawStatus.textContent = '';
 });
 
 submitTransfer.addEventListener('click', async () => {
@@ -970,6 +1006,57 @@ cancelAddMoney.addEventListener('click', () => {
   addMoneyStatus.textContent = '';
 });
 
+submitWithdraw.addEventListener('click', async () => {
+  const bName = withdrawBankName.value.trim();
+  const bAcct = withdrawBankAcct.value.trim();
+  const aName = withdrawAccountName.value.trim();
+  const amount = parseFloat(withdrawAmount.value || '0');
+
+  if (!bName || !bAcct || !aName || !amount || amount <= 0) {
+    showStatus('Please fill all fields with valid details', false, withdrawStatus);
+    return;
+  }
+  if (amount > balance) {
+    showStatus('Insufficient balance', false, withdrawStatus);
+    return;
+  }
+  if (!/^\d{10}$/.test(bAcct)) {
+    showStatus('Bank account number must be 10 digits', false, withdrawStatus);
+    return;
+  }
+
+  submitWithdraw.classList.add('loading');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  balance = +(balance - amount).toFixed(2);
+  const tx = { id: genId(), name: `Withdraw to ${aName} (${bName})`, amount: -amount, time: Date.now() };
+  transactions.unshift(tx);
+  saveState();
+  renderAll();
+
+  receiptDetails.innerHTML = `
+    <h4 style="margin:0 0 6px 0;">Withdrawal Receipt</h4>
+    <div class="tx-detail-row"><div class="tx-detail-label">Bank Name</div><div class="tx-detail-value">${bName}</div></div>
+    <div class="tx-detail-row"><div class="tx-detail-label">Account Number</div><div class="tx-detail-value">${bAcct}</div></div>
+    <div class="tx-detail-row"><div class="tx-detail-label">Account Name</div><div class="tx-detail-value">${aName}</div></div>
+    <div class="tx-detail-row"><div class="tx-detail-label">Amount</div><div class="tx-detail-value">${formatNGN(amount)}</div></div>
+    <div class="tx-detail-row"><div class="tx-detail-label">Date</div><div class="tx-detail-value">${new Date().toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</div></div>
+    <div class="tx-detail-row"><div class="tx-detail-label">Transaction ID</div><div class="tx-detail-value">${tx.id}</div></div>
+  `;
+  withdrawForm.classList.remove('active');
+  submitWithdraw.classList.remove('loading');
+  successScreen.classList.add('active');
+});
+
+cancelWithdraw.addEventListener('click', () => {
+  withdrawForm.classList.remove('active');
+  withdrawBankName.value = '';
+  withdrawBankAcct.value = '';
+  withdrawAccountName.value = '';
+  withdrawAmount.value = '';
+  withdrawStatus.textContent = '';
+});
+
 closeSuccess.addEventListener('click', () => {
   successScreen.classList.remove('active');
   showStatus('Transaction completed successfully', true, formStatus);
@@ -996,7 +1083,11 @@ function showStatus(msg, ok, statusElement = formStatus) {
   if (statusTimer) clearTimeout(statusTimer);
   statusTimer = setTimeout(() => { statusElement.textContent = ''; }, 3500);
 }
-function closeStatus() { formStatus.textContent = ''; addMoneyStatus.textContent = ''; }
+function closeStatus() { 
+  formStatus.textContent = ''; 
+  addMoneyStatus.textContent = ''; 
+  withdrawStatus.textContent = ''; 
+}
 
 /* render all */
 function renderAll() { renderBalance(); renderRecent(); renderHistory(); }
@@ -1007,7 +1098,7 @@ document.getElementById('categoryFilter').addEventListener('change', renderRecen
 document.getElementById('statusFilter').addEventListener('change', renderRecent);
 
 /* click outside to close */
-[historyModal, sendForm, addMoneyForm].forEach(el => {
+[historyModal, sendForm, addMoneyForm, withdrawForm].forEach(el => {
   el.addEventListener('click', (e) => {
     if (e.target === el) el.classList.remove('active') || (el.style.display = 'none');
   });
@@ -1025,7 +1116,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
 /* export sample */
 (function attachDemoClicks() {
   document.querySelectorAll('.action').forEach(el => {
-    if (el.id !== 'toBank') {
+    if (el.id !== 'toBank' && el.id !== 'withdraw') {
       el.addEventListener('click', () => { showStatus('Feature demo: ' + el.textContent.trim(), true, formStatus); });
     }
   });
