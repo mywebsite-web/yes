@@ -301,7 +301,110 @@
     background: rgba(15, 17, 19, 0.9); 
   }
   .success-screen.active { display: flex; flex-direction: column; }
-  .receipt { padding: 8px; background: #1a1a1f; border-radius: 6px; }
+  .receipt-container { 
+    background: #1a1a1f; 
+    padding: 16px; 
+    border-radius: 12px; 
+  }
+  .receipt-logo { 
+    display: flex; 
+    align-items: center; 
+    gap: 6px; 
+    font-size: 16px; 
+    font-weight: bold; 
+    margin-bottom: 16px; 
+  }
+  .receipt-amount { 
+    font-size: 32px; 
+    font-weight: bold; 
+    color: var(--purple); 
+    text-align: center; 
+    margin-bottom: 8px; 
+  }
+  .receipt-status { 
+    font-size: 18px; 
+    text-align: center; 
+    margin-bottom: 4px; 
+  }
+  .receipt-date { 
+    color: var(--muted); 
+    font-size: 12px; 
+    text-align: center; 
+    margin-bottom: 24px; 
+  }
+  .receipt-section { 
+    margin-bottom: 24px; 
+  }
+  .receipt-label { 
+    color: var(--muted); 
+    font-size: 14px; 
+    margin-bottom: 4px; 
+  }
+  .receipt-value { 
+    font-size: 14px; 
+    font-weight: 600; 
+  }
+  .receipt-sub-value { 
+    color: var(--muted); 
+    font-size: 12px; 
+    margin-top: 2px; 
+  }
+  .receipt-info-row { 
+    display: flex; 
+    justify-content: space-between; 
+    margin-bottom: 8px; 
+  }
+  .receipt-info-label { 
+    color: var(--muted); 
+    font-size: 12px; 
+  }
+  .receipt-info-value { 
+    font-size: 12px; 
+    text-align: right; 
+    max-width: 60%; 
+  }
+  .receipt-footer-note { 
+    color: var(--purple); 
+    font-size: 12px; 
+    text-align: center; 
+    margin-top: 24px; 
+    margin-bottom: 24px; 
+  }
+  .receipt-gifts { 
+    display: flex; 
+    justify-content: space-around; 
+    margin-bottom: 16px; 
+  }
+  .gift-btn { 
+    background: linear-gradient(135deg, var(--purple), var(--purple-2)); 
+    border: none; 
+    color: #fff; 
+    padding: 8px 12px; 
+    border-radius: 999px; 
+    font-size: 12px; 
+    display: flex; 
+    align-items: center; 
+    gap: 4px; 
+    cursor: pointer; 
+  }
+  .receipt-actions { 
+    display: flex; 
+    gap: 8px; 
+  }
+  .receipt-action-btn { 
+    flex: 1; 
+    background: transparent; 
+    border: none; 
+    color: var(--purple); 
+    padding: 8px; 
+    border-radius: 6px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    gap: 6px; 
+    font-size: 12px; 
+    cursor: pointer; 
+  }
   /* Bottom nav */
   nav.bottom { 
     position: fixed; 
@@ -574,7 +677,7 @@
 
   <!-- Add Money Form (hidden by default) -->
   <div class="form-card" id="addMoneyForm">
-    <input type="text" id="recipientInput" placeholder="Recipient Name (e.g., Top Up)" value="Top Up">
+    <input type="text" id="recipientInput" placeholder="Sender Name (e.g., Top Up)" value="Top Up">
     <input type="number" id="amountInput" placeholder="₦ Amount" required>
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="primary" id="receiveBtn" style="flex:1">Add Money</button>
@@ -598,8 +701,8 @@
 
   <!-- Success Screen with Receipt -->
   <div class="success-screen" id="successScreen">
-    <h3 style="margin:0 0 8px 0;">Transaction Successful</h3>
-    <div class="receipt" id="receiptDetails"></div>
+    <h3 style="margin:0 0 8px 0;">Transaction Receipt</h3>
+    <div id="receiptDetails" class="receipt-container"></div>
     <button type="button" class="small-btn" id="closeSuccess" style="margin-top:8px;width:100%;">Close</button>
   </div>
 
@@ -702,26 +805,22 @@ if (savedProfilePic) {
 
 let showBalance = true;
 let selectedTxId = null;
+const userName = 'Abdulsalam';
+const senderAccountMask = '904***9211';
 
 /* helpers */
-function genId() { return 'tx_' + Math.random().toString(36).slice(2,11); }
+function genId() { return Math.random().toString(36).slice(2, 14); }
+function genSessId() { return Math.floor(Math.random() * 1e15) + ' ' + Math.floor(Math.random() * 1e16); }
 function saveState() { localStorage.setItem(LS_BAL, balance); localStorage.setItem(LS_TX, JSON.stringify(transactions)); }
-function formatNGN(n) { return '₦' + Number(n).toLocaleString('en-NG', {minimumFractionDigits:2, maximumFractionDigits:2}); }
-function timeAgo(ts) {
-  const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 60) return `${s}s ago`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  if (d < 30) return `${d}d ago`;
-  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+function formatNGN(n) { return '₦ ' + Number(n).toLocaleString('en-NG', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function getFormattedDate(ts) {
+  const date = new Date(ts);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
 }
 
 /* renderers */
 function renderBalance() {
-  balanceDisplay.textContent = showBalance ? formatNGN(balance) : '₦**';
+  balanceDisplay.textContent = showBalance ? formatNGN(balance) : '₦ **';
   eyeToggle.classList.toggle('active', !showBalance);
 }
 function renderRecent() {
@@ -769,7 +868,7 @@ function renderRecent() {
         <div class="tx-icon" style="background:${iconColor}">${icon}</div>
         <div>
           <div class="tx-category">${category}</div>
-          <div class="tx-time">${new Date(tx.time).toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</div>
+          <div class="tx-time">${getFormattedDate(tx.time)}</div>
         </div>
       </div>
       <div class="tx-amount ${tx.amount >= 0 ? 'in' : 'out'}">${tx.amount >= 0 ? '+' : '-'}${formatNGN(Math.abs(tx.amount)).slice(1)}</div>
@@ -802,60 +901,39 @@ function renderHistory() {
                    selectedTx.name.includes('Auto') ? 'Auto Deduct' :
                    selectedTx.name.includes('Buy') ? 'Data Purchase' : 'Other';
   historyList.innerHTML = `
-    <div style="padding:12px;background:linear-gradient(90deg,#fff,#eee);color:#111;border-radius:10px;margin-bottom:10px">
-      <div style="font-weight:700">${category} to ${selectedTx.name}</div>
-      <div style="font-size:24px;margin-top:5px">${formatNGN(Math.abs(selectedTx.amount))}</div>
-      <div style="color:#22c55e;font-size:11px;margin-top:3px">Successful</div>
-    </div>
-    <div class="tx-detail-row">
-      <div class="tx-detail-label">Transfer Amount</div>
-      <div class="tx-detail-value">${formatNGN(Math.abs(selectedTx.amount))}</div>
-    </div>
-    <div class="tx-detail-row">
-      <div class="tx-detail-label">Fee</div>
-      <div class="tx-detail-value">₦0.00</div>
-    </div>
-    <div class="tx-detail-row">
-      <div class="tx-detail-label">Payment Amount</div>
-      <div class="tx-detail-value">${formatNGN(Math.abs(selectedTx.amount))}</div>
-    </div>
-    <div class="tx-detail-row">
-      <div class="tx-detail-label">Recipient</div>
-      <div class="tx-detail-value">${selectedTx.name}</div>
-    </div>
-    <div class="tx-detail-row">
-      <div class="tx-detail-label">Session ID</div>
-      <div class="tx-detail-value">${genId().replace('tx_', 'sess_')}</div>
-    </div>
-    <div class="tx-detail-row" style="color:#7c3aed">
-      <div class="tx-detail-label">If the recipient account is not credited within 5 minutes, please use the Session ID to contact the recipient bank.</div>
-    </div>
-    <div class="tx-detail-row">
-      <div class="tx-detail-label">Completion Time</div>
-      <div class="tx-detail-value">${new Date(selectedTx.time).toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</div>
-    </div>
-    <div class="tx-detail-row">
-      <div class="tx-detail-label">Transaction ID</div>
-      <div class="tx-detail-value">${selectedTx.id}</div>
-    </div>
-    <div class="tx-detail-row">
-      <div class="tx-detail-label">Application</div>
-      <div class="tx-detail-value">PalmPay</div>
-    </div>
-    <div class="tx-detail-row">
-      <div class="tx-detail-label">Payment Type</div>
-      <div class="tx-detail-value">${isIncoming ? 'Money Received' : 'Money Transfer'}</div>
-    </div>
-    <div class="tx-detail-row">
-      <div class="tx-detail-label">Payment Method</div>
-      <div class="tx-detail-value">Balance ${formatNGN(balance)}</div>
-    </div>
-    <div style="margin-top:10px">
-      <div style="color:var(--muted)">Any Questions about this transaction?</div>
-      <div class="tx-detail-row" style="background:#0b0b0c;padding:6px">
-        <span>Receiver didn't get the money</span>
-        <span style="color:#7c3aed">></span>
+    <div class="receipt-container">
+      <div class="receipt-logo">
+        <span style="color:var(--purple);">◎</span> PalmPay
       </div>
+      <div class="receipt-amount">${formatNGN(Math.abs(selectedTx.amount))}</div>
+      <div class="receipt-status">Successful Transaction</div>
+      <div class="receipt-date">${getFormattedDate(selectedTx.time)}</div>
+      <div class="receipt-section">
+        <div class="receipt-label">Recipient:</div>
+        <div class="receipt-value">${selectedTx.name}</div>
+        <div class="receipt-sub-value">Bank Details</div>
+      </div>
+      <div class="receipt-section">
+        <div class="receipt-label">Sender:</div>
+        <div class="receipt-value">${userName}</div>
+        <div class="receipt-sub-value">PalmPay | ${senderAccountMask}</div>
+      </div>
+      <div class="receipt-section">
+        <div class="receipt-label">Transaction Info:</div>
+        <div class="receipt-info-row">
+          <div class="receipt-info-label">Transaction Type</div>
+          <div class="receipt-info-value">${category}</div>
+        </div>
+        <div class="receipt-info-row">
+          <div class="receipt-info-label">Transaction ID</div>
+          <div class="receipt-info-value">${selectedTx.id}</div>
+        </div>
+        <div class="receipt-info-row">
+          <div class="receipt-info-label">Session ID</div>
+          <div class="receipt-info-value">${genSessId()}</div>
+        </div>
+      </div>
+      <div class="receipt-footer-note">Enjoy Seamless and Unlimited Free Transfers to All Banks.</div>
     </div>
     <div style="display:flex;gap:6px;margin-top:10px">
       <button type="button" class="small-btn" style="flex:1">View Receipt</button>
@@ -949,23 +1027,62 @@ submitTransfer.addEventListener('click', async () => {
   await new Promise(resolve => setTimeout(resolve, 1000));
 
   balance = +(balance - amount).toFixed(2);
-  const tx = { id: genId(), name: `Interbank to ${aName} (${bName})`, amount: -amount, time: Date.now() };
+  const now = Date.now();
+  const tx = { id: genId(), name: `Interbank to ${aName} (${bName})`, amount: -amount, time: now };
   transactions.unshift(tx);
   saveState();
   renderAll();
 
+  const sessId = genSessId();
   receiptDetails.innerHTML = `
-    <h4 style="margin:0 0 6px 0;">Receipt</h4>
-    <div class="tx-detail-row"><div class="tx-detail-label">Bank Name</div><div class="tx-detail-value">${bName}</div></div>
-    <div class="tx-detail-row"><div class="tx-detail-label">Account Number</div><div class="tx-detail-value">${bAcct}</div></div>
-    <div class="tx-detail-row"><div class="tx-detail-label">Account Name</div><div class="tx-detail-value">${aName}</div></div>
-    <div class="tx-detail-row"><div class="tx-detail-label">Amount</div><div class="tx-detail-value">${formatNGN(amount)}</div></div>
-    <div class="tx-detail-row"><div class="tx-detail-label">Date</div><div class="tx-detail-value">${new Date().toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</div></div>
-    <div class="tx-detail-row"><div class="tx-detail-label">Transaction ID</div><div class="tx-detail-value">${tx.id}</div></div>
+    <div class="receipt-logo">
+      <span style="color:var(--purple);">◎</span> PalmPay
+    </div>
+    <div class="receipt-amount">${formatNGN(amount)}</div>
+    <div class="receipt-status">Successful Transaction</div>
+    <div class="receipt-date">${getFormattedDate(now)}</div>
+    <div class="receipt-section">
+      <div class="receipt-label">Recipient:</div>
+      <div class="receipt-value">${aName}</div>
+      <div class="receipt-sub-value">${bName} | ${bAcct}</div>
+    </div>
+    <div class="receipt-section">
+      <div class="receipt-label">Sender:</div>
+      <div class="receipt-value">${userName.toUpperCase()}</div>
+      <div class="receipt-sub-value">PalmPay | ${senderAccountMask}</div>
+    </div>
+    <div class="receipt-section">
+      <div class="receipt-label">Transaction Info:</div>
+      <div class="receipt-info-row">
+        <div class="receipt-info-label">Transaction Type</div>
+        <div class="receipt-info-value">Money Transfer - Bank account</div>
+      </div>
+      <div class="receipt-info-row">
+        <div class="receipt-info-label">Transaction ID</div>
+        <div class="receipt-info-value">${tx.id}</div>
+      </div>
+      <div class="receipt-info-row">
+        <div class="receipt-info-label">Session ID</div>
+        <div class="receipt-info-value">${sessId}</div>
+      </div>
+    </div>
+    <div class="receipt-footer-note">Enjoy Seamless and Unlimited Free Transfers to All Banks.</div>
+    <div class="receipt-gifts">
+      <button class="gift-btn">✅ Receipt</button>
+      <button class="gift-btn">🎁 Wishes</button>
+      <button class="gift-btn">🎂 Birthday</button>
+      <button class="gift-btn">💕 Valentine</button>
+      <button class="gift-btn">💒 Wedding</button>
+    </div>
+    <div class="receipt-actions">
+      <button class="receipt-action-btn" id="shareReceipt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8m-4-6l-4-4-4 4m4-4v10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Share as Image</button>
+      <button class="receipt-action-btn" id="saveReceipt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v12H8V8H4V4zm4 4v8h12V4H8v4z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Save as PDF</button>
+    </div>
   `;
   sendForm.classList.remove('active');
   submitTransfer.classList.remove('loading');
   successScreen.classList.add('active');
+  attachReceiptActions();
 });
 
 cancelTransfer.addEventListener('click', () => {
@@ -978,7 +1095,7 @@ cancelTransfer.addEventListener('click', () => {
 });
 
 receiveBtn.addEventListener('click', async () => {
-  const name = recipientInput.value.trim() || 'Top Up';
+  const senderName = recipientInput.value.trim() || 'Top Up';
   const amount = parseFloat(amountInput.value || '0');
   if (!amount || amount <= 0) {
     showStatus('Enter valid amount', false, addMoneyStatus);
@@ -989,14 +1106,63 @@ receiveBtn.addEventListener('click', async () => {
   await new Promise(resolve => setTimeout(resolve, 1000));
 
   balance = +(balance + amount).toFixed(2);
-  const tx = { id: genId(), name: `${name} (Add Money)`, amount: +amount, time: Date.now() };
+  const now = Date.now();
+  const tx = { id: genId(), name: `${senderName} (Add Money)`, amount: +amount, time: now };
   transactions.unshift(tx);
   saveState();
   renderAll();
-  showStatus(`Money added: Received ${formatNGN(amount)} from ${name}`, true, addMoneyStatus);
+  showStatus(`Money added: Received ${formatNGN(amount)} from ${senderName}`, true, addMoneyStatus);
   addMoneyForm.classList.remove('active');
   receiveBtn.classList.remove('loading');
+
+  const sessId = genSessId();
+  receiptDetails.innerHTML = `
+    <div class="receipt-logo">
+      <span style="color:var(--purple);">◎</span> PalmPay
+    </div>
+    <div class="receipt-amount">${formatNGN(amount)}</div>
+    <div class="receipt-status">Successful Transaction</div>
+    <div class="receipt-date">${getFormattedDate(now)}</div>
+    <div class="receipt-section">
+      <div class="receipt-label">Recipient:</div>
+      <div class="receipt-value">${userName.toUpperCase()}</div>
+      <div class="receipt-sub-value">PalmPay | ${senderAccountMask}</div>
+    </div>
+    <div class="receipt-section">
+      <div class="receipt-label">Sender:</div>
+      <div class="receipt-value">${senderName}</div>
+      <div class="receipt-sub-value">Top Up</div>
+    </div>
+    <div class="receipt-section">
+      <div class="receipt-label">Transaction Info:</div>
+      <div class="receipt-info-row">
+        <div class="receipt-info-label">Transaction Type</div>
+        <div class="receipt-info-value">Money Transfer - Top Up</div>
+      </div>
+      <div class="receipt-info-row">
+        <div class="receipt-info-label">Transaction ID</div>
+        <div class="receipt-info-value">${tx.id}</div>
+      </div>
+      <div class="receipt-info-row">
+        <div class="receipt-info-label">Session ID</div>
+        <div class="receipt-info-value">${sessId}</div>
+      </div>
+    </div>
+    <div class="receipt-footer-note">Enjoy Seamless and Unlimited Free Transfers to All Banks.</div>
+    <div class="receipt-gifts">
+      <button class="gift-btn">✅ Receipt</button>
+      <button class="gift-btn">🎁 Wishes</button>
+      <button class="gift-btn">🎂 Birthday</button>
+      <button class="gift-btn">💕 Valentine</button>
+      <button class="gift-btn">💒 Wedding</button>
+    </div>
+    <div class="receipt-actions">
+      <button class="receipt-action-btn" id="shareReceipt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8m-4-6l-4-4-4 4m4-4v10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Share as Image</button>
+      <button class="receipt-action-btn" id="saveReceipt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v12H8V8H4V4zm4 4v8h12V4H8v4z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Save as PDF</button>
+    </div>
+  `;
   successScreen.classList.add('active');
+  attachReceiptActions();
 });
 
 cancelAddMoney.addEventListener('click', () => {
@@ -1029,24 +1195,77 @@ submitWithdraw.addEventListener('click', async () => {
   await new Promise(resolve => setTimeout(resolve, 1000));
 
   balance = +(balance - amount).toFixed(2);
-  const tx = { id: genId(), name: `Withdraw to ${aName} (${bName})`, amount: -amount, time: Date.now() };
+  const now = Date.now();
+  const tx = { id: genId(), name: `Withdraw to ${aName} (${bName})`, amount: -amount, time: now };
   transactions.unshift(tx);
   saveState();
   renderAll();
 
+  const sessId = genSessId();
   receiptDetails.innerHTML = `
-    <h4 style="margin:0 0 6px 0;">Withdrawal Receipt</h4>
-    <div class="tx-detail-row"><div class="tx-detail-label">Bank Name</div><div class="tx-detail-value">${bName}</div></div>
-    <div class="tx-detail-row"><div class="tx-detail-label">Account Number</div><div class="tx-detail-value">${bAcct}</div></div>
-    <div class="tx-detail-row"><div class="tx-detail-label">Account Name</div><div class="tx-detail-value">${aName}</div></div>
-    <div class="tx-detail-row"><div class="tx-detail-label">Amount</div><div class="tx-detail-value">${formatNGN(amount)}</div></div>
-    <div class="tx-detail-row"><div class="tx-detail-label">Date</div><div class="tx-detail-value">${new Date().toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</div></div>
-    <div class="tx-detail-row"><div class="tx-detail-label">Transaction ID</div><div class="tx-detail-value">${tx.id}</div></div>
+    <div class="receipt-logo">
+      <span style="color:var(--purple);">◎</span> PalmPay
+    </div>
+    <div class="receipt-amount">${formatNGN(amount)}</div>
+    <div class="receipt-status">Successful Transaction</div>
+    <div class="receipt-date">${getFormattedDate(now)}</div>
+    <div class="receipt-section">
+      <div class="receipt-label">Recipient:</div>
+      <div class="receipt-value">${aName}</div>
+      <div class="receipt-sub-value">${bName} | ${bAcct}</div>
+    </div>
+    <div class="receipt-section">
+      <div class="receipt-label">Sender:</div>
+      <div class="receipt-value">${userName.toUpperCase()}</div>
+      <div class="receipt-sub-value">PalmPay | ${senderAccountMask}</div>
+    </div>
+    <div class="receipt-section">
+      <div class="receipt-label">Transaction Info:</div>
+      <div class="receipt-info-row">
+        <div class="receipt-info-label">Transaction Type</div>
+        <div class="receipt-info-value">Money Transfer - Withdraw to Bank account</div>
+      </div>
+      <div class="receipt-info-row">
+        <div class="receipt-info-label">Transaction ID</div>
+        <div class="receipt-info-value">${tx.id}</div>
+      </div>
+      <div class="receipt-info-row">
+        <div class="receipt-info-label">Session ID</div>
+        <div class="receipt-info-value">${sessId}</div>
+      </div>
+    </div>
+    <div class="receipt-footer-note">Enjoy Seamless and Unlimited Free Transfers to All Banks.</div>
+    <div class="receipt-gifts">
+      <button class="gift-btn">✅ Receipt</button>
+      <button class="gift-btn">🎁 Wishes</button>
+      <button class="gift-btn">🎂 Birthday</button>
+      <button class="gift-btn">💕 Valentine</button>
+      <button class="gift-btn">💒 Wedding</button>
+    </div>
+    <div class="receipt-actions">
+      <button class="receipt-action-btn" id="shareReceipt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8m-4-6l-4-4-4 4m4-4v10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Share as Image</button>
+      <button class="receipt-action-btn" id="saveReceipt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v12H8V8H4V4zm4 4v8h12V4H8v4z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Save as PDF</button>
+    </div>
   `;
   withdrawForm.classList.remove('active');
   submitWithdraw.classList.remove('loading');
   successScreen.classList.add('active');
+  attachReceiptActions();
 });
+
+function attachReceiptActions() {
+  document.getElementById('shareReceipt').addEventListener('click', () => {
+    alert('Share as Image: In a real app, this would share the receipt as an image.');
+  });
+  document.getElementById('saveReceipt').addEventListener('click', () => {
+    alert('Save as PDF: In a real app, this would download the receipt as PDF.');
+  });
+  document.querySelectorAll('.gift-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      alert(`Selected: ${btn.textContent.trim()}. In a real app, this would customize the receipt.`);
+    });
+  });
+}
 
 cancelWithdraw.addEventListener('click', () => {
   withdrawForm.classList.remove('active');
@@ -1059,6 +1278,7 @@ cancelWithdraw.addEventListener('click', () => {
 
 closeSuccess.addEventListener('click', () => {
   successScreen.classList.remove('active');
+  receiptDetails.innerHTML = '';
   showStatus('Transaction completed successfully', true, formStatus);
 });
 
@@ -1098,9 +1318,12 @@ document.getElementById('categoryFilter').addEventListener('change', renderRecen
 document.getElementById('statusFilter').addEventListener('change', renderRecent);
 
 /* click outside to close */
-[historyModal, sendForm, addMoneyForm, withdrawForm].forEach(el => {
+[historyModal, sendForm, addMoneyForm, withdrawForm, successScreen].forEach(el => {
   el.addEventListener('click', (e) => {
-    if (e.target === el) el.classList.remove('active') || (el.style.display = 'none');
+    if (e.target === el) {
+      el.classList.remove('active');
+      if (el === successScreen) receiptDetails.innerHTML = '';
+    }
   });
 });
 
@@ -1122,4 +1345,5 @@ document.querySelectorAll('.nav-item').forEach(item => {
   });
 })();
 </script>
+</body>
 </html>
